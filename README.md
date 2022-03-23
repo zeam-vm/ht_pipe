@@ -1,6 +1,6 @@
 # HtPipe
 
-**TODO: Add description**
+HtPipe: Macro for the Heavy Task Pipeline operator
 
 ## Installation
 
