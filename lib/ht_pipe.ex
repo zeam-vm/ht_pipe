@@ -1,5 +1,5 @@
 defmodule HtPipe do
   @moduledoc """
-  Documentation for `HtPipe`.
+  `HtPipe`: Macro for the Heavy Task Pipeline operator.
   """
 end
