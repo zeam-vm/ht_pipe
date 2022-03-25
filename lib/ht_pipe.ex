@@ -94,6 +94,7 @@ defmodule HtPipe do
     end
   end
 
+  @spec spawn_sub_elixir() :: true | false
   def spawn_sub_elixir() do
     unless Node.alive?() do
       # TODO set up Node
@@ -121,10 +122,13 @@ defmodule HtPipe do
     wait_for_connect_htp_worker(100)
   end
 
+  @spec worker(pid(), non_neg_integer() | atom(), fun()) ::
+          {:ok, any()} | {:exit | any()} | nil
   def worker(receiver, timeout, f) do
     send(receiver, HtPipe.htp(f, timeout: timeout, spawn: :inner))
   end
 
+  @spec wait_for_connect_htp_worker(integer) :: true | false
   def wait_for_connect_htp_worker(timeout) when timeout > 0 do
     case {Node.connect(htp_worker()), Node.ping(htp_worker())} do
       {true, :pong} ->
@@ -138,6 +142,7 @@ defmodule HtPipe do
 
   def wait_for_connect_htp_worker(_), do: false
 
+  @spec halt_htp_worker() :: :ok
   def halt_htp_worker() do
     case Node.ping(htp_worker()) do
       :pong ->
@@ -149,6 +154,7 @@ defmodule HtPipe do
     end
   end
 
+  @spec htp_worker() :: atom()
   def htp_worker() do
     [sname, hostname] = Node.self() |> get_listname_from_nodename()
     :"htp_worker_#{sname}@#{hostname}"
@@ -158,10 +164,12 @@ defmodule HtPipe do
     node_name |> Atom.to_string() |> String.split("@")
   end
 
+  @spec get_sname_from_nodename(atom()) :: String.t()
   def get_sname_from_nodename(node_name) do
     node_name |> get_listname_from_nodename() |> Enum.at(0)
   end
 
+  @spec get_hostname_from_nodename(atom()) :: String.t()
   def get_hostname_from_nodename(node_name) do
     node_name |> get_listname_from_nodename() |> Enum.at(1)
   end
