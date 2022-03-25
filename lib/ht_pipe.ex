@@ -126,6 +126,7 @@ defmodule HtPipe do
                ~r/Protocol 'inet_tcp': the name #{htp_worker_name()} seems to be in use by another Erlang node\r\n/
              ) do
             kill_htp_worker()
+            Process.sleep(100)
             spawn_sub_elixir_sub()
           else
             raise RuntimeError, "unknown return value #{message}"
@@ -167,7 +168,7 @@ defmodule HtPipe do
     |> Enum.filter(&String.match?(&1, ~r/#{htp_worker_name()}/))
     |> Enum.map(fn str -> Regex.named_captures(~r/[A-z0-9]+[ ]+(?<target>[0-9]+)/, str) end)
     |> Enum.map(fn %{"target" => id} ->
-      System.cmd("kill", [id])
+      System.cmd("kill", [id], stderr_to_stdout: true)
     end)
 
     :ok
