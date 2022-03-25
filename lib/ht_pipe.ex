@@ -106,9 +106,7 @@ defmodule HtPipe do
     end
 
     unless wait_for_connect_htp_worker(1000) do
-      Task.async(fn ->
-        spawn_sub_elixir_sub()
-      end)
+      spawn_sub_elixir_sub()
     end
 
     wait_for_connect_htp_worker(1000)
@@ -116,11 +114,36 @@ defmodule HtPipe do
 
   @doc false
   def spawn_sub_elixir_sub() do
+    Task.async(fn ->
+      spawn_sub_elixir_sub_sub()
+      |> case do
+        {
+          message,
+          1
+        } ->
+          if String.match?(
+               message,
+               ~r/Protocol 'inet_tcp': the name #{htp_worker_name()} seems to be in use by another Erlang node\r\n/
+             ) do
+            kill_htp_worker()
+            spawn_sub_elixir_sub()
+          else
+            raise RuntimeError, "unknown return value #{message}"
+          end
+
+        other ->
+          other
+      end
+    end)
+  end
+
+  @doc false
+  def spawn_sub_elixir_sub_sub() do
     System.cmd(
       "elixir",
       [
         "--name",
-        htp_worker() |> Atom.to_string(),
+        htp_worker_name(),
         "--cookie",
         Node.get_cookie() |> Atom.to_string(),
         "-S",
@@ -131,6 +154,23 @@ defmodule HtPipe do
       ],
       stderr_to_stdout: true
     )
+  end
+
+  @doc """
+  Kills the htp workers.
+  """
+  @spec kill_htp_worker() :: :ok
+  def kill_htp_worker() do
+    System.cmd("ps", ["auxww"])
+    |> elem(0)
+    |> String.split("\n")
+    |> Enum.filter(&String.match?(&1, ~r/#{htp_worker_name()}/))
+    |> Enum.map(fn str -> Regex.named_captures(~r/[A-z0-9]+[ ]+(?<target>[0-9]+)/, str) end)
+    |> Enum.map(fn %{"target" => id} ->
+      System.cmd("kill", [id])
+    end)
+
+    :ok
   end
 
   @doc false
@@ -185,6 +225,11 @@ defmodule HtPipe do
   def htp_worker() do
     [sname, hostname] = Node.self() |> get_listname_from_nodename()
     :"htp_worker_#{sname}@#{hostname}"
+  end
+
+  @spec htp_worker_name() :: String.t()
+  def htp_worker_name() do
+    htp_worker() |> Atom.to_string()
   end
 
   defp get_listname_from_nodename(node_name) do
