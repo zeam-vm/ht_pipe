@@ -128,7 +128,8 @@ defmodule HtPipe do
         "run",
         "-e",
         "Process.sleep(#{@sub_elixir_alive_time})"
-      ]
+      ],
+      stderr_to_stdout: true
     )
   end
 
