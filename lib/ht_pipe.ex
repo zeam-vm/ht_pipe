@@ -105,26 +105,31 @@ defmodule HtPipe do
       # TODO set up Node
     end
 
-    unless wait_for_connect_htp_worker(100) do
+    unless wait_for_connect_htp_worker(1000) do
       Task.async(fn ->
-        System.cmd(
-          "elixir",
-          [
-            "--name",
-            htp_worker() |> Atom.to_string(),
-            "--cookie",
-            Node.get_cookie() |> Atom.to_string(),
-            "-S",
-            "mix",
-            "run",
-            "-e",
-            "Process.sleep(#{@sub_elixir_alive_time})"
-          ]
-        )
+        spawn_sub_elixir_sub()
       end)
     end
 
-    wait_for_connect_htp_worker(10000)
+    wait_for_connect_htp_worker(1000)
+  end
+
+  @doc false
+  def spawn_sub_elixir_sub() do
+    System.cmd(
+      "elixir",
+      [
+        "--name",
+        htp_worker() |> Atom.to_string(),
+        "--cookie",
+        Node.get_cookie() |> Atom.to_string(),
+        "-S",
+        "mix",
+        "run",
+        "-e",
+        "Process.sleep(#{@sub_elixir_alive_time})"
+      ]
+    )
   end
 
   @doc false
