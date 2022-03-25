@@ -3,6 +3,8 @@ defmodule HtPipe do
   `HtPipe`: Macro for the Heavy Task Pipeline operator.
   """
 
+  @sub_elixir_alive_time 100_000
+
   @doc """
   Starts a task that can be awaited on with being supervised,
   and temporarily blocks the caller process waiting
@@ -72,5 +74,95 @@ defmodule HtPipe do
   defp htp_p(f, timeout, :inner) do
     task = Task.Supervisor.async_nolink(HtPipe.TaskSupervisor, f)
     Task.yield(task, timeout) || Task.shutdown(task)
+  end
+
+  defp htp_p(f, timeout, :os) do
+    if spawn_sub_elixir() do
+      Node.spawn(htp_worker(), __MODULE__, :worker, [self(), timeout, f])
+      Process.sleep(100)
+
+      result =
+        receive do
+          e -> e
+        after
+          timeout -> nil
+        end
+
+      result
+    else
+      nil
+    end
+  end
+
+  def spawn_sub_elixir() do
+    unless Node.alive?() do
+      # TODO set up Node
+    end
+
+    unless wait_for_connect_htp_worker(100) do
+      Task.async(fn ->
+        System.cmd(
+          "elixir",
+          [
+            "--name",
+            htp_worker() |> Atom.to_string(),
+            "--cookie",
+            Node.get_cookie() |> Atom.to_string(),
+            "-S",
+            "mix",
+            "run",
+            "-e",
+            "Process.sleep(#{@sub_elixir_alive_time})"
+          ]
+        )
+      end)
+    end
+
+    wait_for_connect_htp_worker(100)
+  end
+
+  def worker(receiver, timeout, f) do
+    send(receiver, HtPipe.htp(f, timeout: timeout, spawn: :inner))
+  end
+
+  def wait_for_connect_htp_worker(timeout) when timeout > 0 do
+    case {Node.connect(htp_worker()), Node.ping(htp_worker())} do
+      {true, :pong} ->
+        true
+
+      _ ->
+        Process.sleep(100)
+        wait_for_connect_htp_worker(timeout - 100)
+    end
+  end
+
+  def wait_for_connect_htp_worker(_), do: false
+
+  def halt_htp_worker() do
+    case Node.ping(htp_worker()) do
+      :pong ->
+        Node.spawn(htp_worker(), &System.halt/0)
+        :ok
+
+      :pang ->
+        :ok
+    end
+  end
+
+  def htp_worker() do
+    [sname, hostname] = Node.self() |> get_listname_from_nodename()
+    :"htp_worker_#{sname}@#{hostname}"
+  end
+
+  defp get_listname_from_nodename(node_name) do
+    node_name |> Atom.to_string() |> String.split("@")
+  end
+
+  def get_sname_from_nodename(node_name) do
+    node_name |> get_listname_from_nodename() |> Enum.at(0)
+  end
+
+  def get_hostname_from_nodename(node_name) do
+    node_name |> get_listname_from_nodename() |> Enum.at(1)
   end
 end
