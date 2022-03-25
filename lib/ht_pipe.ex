@@ -124,7 +124,7 @@ defmodule HtPipe do
       end)
     end
 
-    wait_for_connect_htp_worker(100)
+    wait_for_connect_htp_worker(10000)
   end
 
   @doc false
