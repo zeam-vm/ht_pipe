@@ -94,6 +94,11 @@ defmodule HtPipe do
     end
   end
 
+  @doc """
+    Spawns Elixir sub os process with `Node` setting.
+
+    This process will terminate after `@sub_elixr_alive_time` msec.
+  """
   @spec spawn_sub_elixir() :: true | false
   def spawn_sub_elixir() do
     unless Node.alive?() do
@@ -122,13 +127,23 @@ defmodule HtPipe do
     wait_for_connect_htp_worker(100)
   end
 
+  @doc false
   @spec worker(pid(), non_neg_integer() | atom(), fun()) ::
           {:ok, any()} | {:exit | any()} | nil
   def worker(receiver, timeout, f) do
     send(receiver, HtPipe.htp(f, timeout: timeout, spawn: :inner))
   end
 
+  @doc """
+    Waits for and tests the connection between the self process
+    and the worker of the sub elixir process.
+
+    A timeout, in milliseconds can be given with a default value
+    of `1000`.
+  """
   @spec wait_for_connect_htp_worker(integer) :: true | false
+  def wait_for_connect_htp_worker(timeout \\ 1000)
+
   def wait_for_connect_htp_worker(timeout) when timeout > 0 do
     case {Node.connect(htp_worker()), Node.ping(htp_worker())} do
       {true, :pong} ->
@@ -142,6 +157,9 @@ defmodule HtPipe do
 
   def wait_for_connect_htp_worker(_), do: false
 
+  @doc """
+    Halts the worker of the sub elixir process.
+  """
   @spec halt_htp_worker() :: :ok
   def halt_htp_worker() do
     case Node.ping(htp_worker()) do
@@ -154,6 +172,9 @@ defmodule HtPipe do
     end
   end
 
+  @doc """
+    Gets the node of the worker.
+  """
   @spec htp_worker() :: atom()
   def htp_worker() do
     [sname, hostname] = Node.self() |> get_listname_from_nodename()
@@ -164,11 +185,17 @@ defmodule HtPipe do
     node_name |> Atom.to_string() |> String.split("@")
   end
 
+  @doc """
+    Gets the short name of the node.
+  """
   @spec get_sname_from_nodename(atom()) :: String.t()
   def get_sname_from_nodename(node_name) do
     node_name |> get_listname_from_nodename() |> Enum.at(0)
   end
 
+  @doc """
+    Gets the host name of the node.
+  """
   @spec get_hostname_from_nodename(atom()) :: String.t()
   def get_hostname_from_nodename(node_name) do
     node_name |> get_listname_from_nodename() |> Enum.at(1)
